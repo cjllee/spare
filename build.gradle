@@ -18,6 +18,12 @@ configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
+	// 모든 설정에서 commons-lang3 버전 강제 지정
+	all {
+		resolutionStrategy {
+			force 'org.apache.commons:commons-lang3:3.14.0'
+		}
+	}
 }
 
 repositories {
@@ -27,8 +33,16 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+	// Swagger/OpenAPI 의존성 (취약점 해결)
+	implementation('org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0') {
+		exclude group: 'org.apache.commons', module: 'commons-lang3'
+	}
+	// 안전한 버전의 commons-lang3 직접 추가
+	implementation 'org.apache.commons:commons-lang3:3.14.0'
+
 	compileOnly 'org.projectlombok:lombok'
-	//runtimeOnly 'org.postgresql:postgresql'
+	runtimeOnly 'org.postgresql:postgresql'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
