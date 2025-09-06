@@ -89,3 +89,6 @@ yarn-error.log*
 *.rar
 *.tar
 *.zip
+
+# Ignore sensitive configuration files
+/src/main/resources/application-secret.properties
