@@ -92,3 +92,4 @@ yarn-error.log*
 
 # Ignore sensitive configuration files
 /src/main/resources/application-secret.properties
+/src/main/resources/application.properties
