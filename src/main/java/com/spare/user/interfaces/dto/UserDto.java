@@ -18,6 +18,17 @@ public class UserDto {
     private String password;
     private String role;
     private LocalDateTime createdAt;
+    private String verificationCode;
+
+    // 새로운 생성자 추가
+    public UserDto(Long id, String email, String password, String role, LocalDateTime createdAt) {
+        this.id = id;
+        this.email = email;
+        this.password = password;
+        this.role = role;
+        this.createdAt = createdAt;
+        this.verificationCode = null;
+    }
 
     public User toEntity() {
         return new User(email, password, role);
