@@ -1,5 +1,6 @@
 package com.spare.user.application;
 
+import com.spare.common.security.JwtUtil;
 import com.spare.common.util.EmailUtil;
 import com.spare.user.domain.User;
 import com.spare.user.infrastructure.UserRepository;
@@ -20,12 +21,14 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailUtil emailUtil;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final JwtUtil jwtUtil;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailUtil emailUtil, RedisTemplate<String, Object> redisTemplate) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailUtil emailUtil, RedisTemplate<String, Object> redisTemplate, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailUtil = emailUtil;
         this.redisTemplate = redisTemplate;
+        this.jwtUtil = jwtUtil;
     }
 
     public void sendVerificationCode(UserDto userDto) {
@@ -54,7 +57,6 @@ public class UserService {
         if (!verifyCode(userDto.getEmail(), userDto.getVerificationCode())) {
             throw new IllegalArgumentException("Invalid verification code");
         }
-        // Use the User constructor instead of setters
         User user = new User(
                 userDto.getEmail(),
                 passwordEncoder.encode(userDto.getPassword()),
@@ -65,5 +67,13 @@ public class UserService {
         return new UserDto(savedUser.getId(), savedUser.getEmail(), null, savedUser.getRole(), savedUser.getCreatedAt());
     }
 
-    // 기존 login, loginWithOAuth2 유지
+    public String login(UserDto userDto) {
+        User user = userRepository.findByEmail(userDto.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (!passwordEncoder.matches(userDto.getPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Invalid password");
+        }
+        logger.info("User logged in: {}", user.getEmail());
+        return jwtUtil.generateToken(user.getEmail(), user.getRole());
+    }
 }

@@ -7,7 +7,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -21,13 +20,15 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users/signup", "/api/users/login", "/oauth2/**", "/login/oauth2/**", "/api/users/oauth2/success","/api/users/verification/send").permitAll()
+                        .requestMatchers("/api/users/signup", "/api/users/login", "/users/signup", "/users/login",
+                                "/users/verification/send", "/users/verification/verify",
+                                "/oauth2/**", "/login/oauth2/**", "/api/users/oauth2/success").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/oauth2/authorization/google")
                         .defaultSuccessUrl("/api/users/oauth2/success", true)
-                        .failureUrl("/api/users/login?error=true")
+                        .failureUrl("/users/login?error=true")
                 )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
