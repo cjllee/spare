@@ -46,7 +46,8 @@ public class UserService {
     public boolean verifyCode(String email, String code) {
         String storedCode = (String) redisTemplate.opsForValue().get("verification:" + email);
         if (storedCode != null && storedCode.equals(code)) {
-            redisTemplate.delete("verification:" + email);
+            // 인증 성공 시 verified 상태로 마킹 (코드는 삭제하지 않음)
+            redisTemplate.opsForValue().set("verified:" + email, "true", Duration.ofMinutes(30));
             logger.info("Verification successful for email: {}", email);
             return true;
         }
@@ -55,16 +56,31 @@ public class UserService {
     }
 
     public UserDto signup(UserDto userDto) {
-        if (!verifyCode(userDto.getEmail(), userDto.getVerificationCode())) {
-            throw new IllegalArgumentException("Invalid verification code");
+        // 이메일이 인증되었는지 확인 (Redis에서 verified 상태 확인)
+        String verified = (String) redisTemplate.opsForValue().get("verified:" + userDto.getEmail());
+        if (verified == null || !verified.equals("true")) {
+            logger.warn("Signup attempted without verification for email: {}", userDto.getEmail());
+            throw new IllegalArgumentException("Email verification required");
         }
-        // Use the User constructor instead of setters
+
+        // 이중 가입 방지를 위해 다시 한번 확인
+        if (userRepository.existsByEmail(userDto.getEmail())) {
+            logger.warn("Email already exists during signup: {}", userDto.getEmail());
+            throw new IllegalArgumentException("Email already exists");
+        }
+
+        // User 생성
         User user = new User(
                 userDto.getEmail(),
                 passwordEncoder.encode(userDto.getPassword()),
                 "USER"
         );
         User savedUser = userRepository.save(user);
+
+        // 인증 관련 Redis 데이터 정리
+        redisTemplate.delete("verification:" + userDto.getEmail());
+        redisTemplate.delete("verified:" + userDto.getEmail());
+
         logger.info("User signed up: {}", savedUser.getEmail());
         return new UserDto(savedUser.getId(), savedUser.getEmail(), null, savedUser.getRole(), savedUser.getCreatedAt());
     }
@@ -78,7 +94,6 @@ public class UserService {
         logger.info("User logged in: {}", user.getEmail());
         return jwtUtil.generateToken(user.getEmail(), user.getRole());
     }
-
 
     public String loginWithOAuth2(OAuth2User oAuth2User) {
         // OAuth2User에서 이메일 정보 추출
@@ -115,5 +130,4 @@ public class UserService {
 
         return token;
     }
-
 }
