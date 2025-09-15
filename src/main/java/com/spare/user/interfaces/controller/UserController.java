@@ -81,6 +81,7 @@ public class UserController {
     @GetMapping("/oauth2/success")
     @Operation(summary = "OAuth2 로그인 성공", description = "Google OAuth2 로그인 성공 후 JWT 토큰을 발급합니다")
     public ResponseEntity<String> oauth2Login(OAuth2AuthenticationToken authentication) {
+        logger.warn("OAuth2 success endpoint called directly; redirect should occur via SecurityConfig to /users/welcome");
         if (authentication == null) {
             logger.error("OAuth2 authentication is null");
             return ResponseEntity.badRequest().body("Authentication failed: No authentication token found");

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>환영합니다</title>
+    <title>Welcome</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -19,12 +19,12 @@
             padding: 20px;
             background-color: white;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        h1 {
+        .welcome-container h1 {
             color: #333;
         }
-        .logout-btn {
+        .logout-button {
             padding: 10px 20px;
             background-color: #dc3545;
             color: white;
@@ -33,17 +33,17 @@
             cursor: pointer;
             font-size: 16px;
         }
-        .logout-btn:hover {
+        .logout-button:hover {
             background-color: #c82333;
         }
     </style>
 </head>
 <body>
 <div class="welcome-container">
-    <h1>환영합니다!</h1>
-    <p>로그인 또는 회원가입에 성공하셨습니다.</p>
+    <h1>Welcome!</h1>
+    <p>You have successfully logged in or signed up.</p>
     <form action="/logout" method="post">
-        <button type="submit" class="logout-btn">로그아웃</button>
+        <button type="submit" class="logout-button">Logout</button>
     </form>
 </div>
 </body>

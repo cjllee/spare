@@ -46,8 +46,10 @@ public class SecurityConfig {
                         ).permitAll()
                         // OAuth2 관련 경로들
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        // OAuth2 성공 콜백
+                        // OAuth2 성공 콜백 (for API compatibility, though redirect handled elsewhere)
                         .requestMatchers("/api/users/oauth2/success").permitAll()
+                        // Welcome 페이지 (requires authentication)
+                        .requestMatchers("/users/welcome").authenticated()
                         // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )
@@ -56,7 +58,7 @@ public class SecurityConfig {
                                 .authorizationEndpoint(authorization -> authorization
                                         .baseUri("/oauth2/authorization"))
                                 // OAuth2 로그인 성공 시 리다이렉트 URL
-                                .defaultSuccessUrl("/api/users/oauth2/success", true)
+                                .defaultSuccessUrl("/users/welcome", true)
                                 // OAuth2 로그인 실패 시 리다이렉트 URL
                                 .failureUrl("/login?error=oauth2_failed")
                         // 커스텀 로그인 페이지는 설정하지 않음 (자동 리다이렉트 방지)
@@ -65,7 +67,7 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/users/login")        // 일반 로그인 페이지
                         .loginProcessingUrl("/api/users/login")  // 로그인 처리 URL
-                        .defaultSuccessUrl("/dashboard", true)
+                        .defaultSuccessUrl("/users/welcome", true)
                         .failureUrl("/users/login?error=true")
                         .permitAll()
                 )

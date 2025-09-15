@@ -65,7 +65,7 @@ public class UserViewController {
         try {
             userService.signup(userDto);
             logger.info("User signed up successfully: {}", userDto.getEmail());
-            return "redirect:/users/login";
+            return "redirect:/users/welcome";
         } catch (IllegalArgumentException e) {
             model.addAttribute("errorMessage", e.getMessage());
             model.addAttribute("email", userDto.getEmail());
@@ -87,12 +87,17 @@ public class UserViewController {
             String token = userService.login(userDto);
             model.addAttribute("successMessage", "로그인 성공! JWT: " + token);
             logger.info("User logged in successfully: {}", userDto.getEmail());
-            return "login"; // 실제로는 홈으로 리다이렉트 예정
+            return "redirect:/users/welcome";
         } catch (IllegalArgumentException e) {
             model.addAttribute("errorMessage", "로그인 실패: " + e.getMessage());
             model.addAttribute("userDto", userDto);
             logger.warn("Login failed for email: {}: {}", userDto.getEmail(), e.getMessage());
             return "login";
         }
+    }
+
+    @GetMapping("/welcome")
+    public String showWelcomePage() {
+        return "welcome";
     }
 }
