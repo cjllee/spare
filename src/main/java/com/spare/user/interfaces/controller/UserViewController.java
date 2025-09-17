@@ -2,6 +2,8 @@ package com.spare.user.interfaces.controller;
 
 import com.spare.user.application.UserService;
 import com.spare.user.interfaces.dto.UserDto;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
@@ -13,6 +15,11 @@ import org.springframework.web.bind.annotation.*;
 public class UserViewController {
     private static final Logger logger = LoggerFactory.getLogger(UserViewController.class);
     private final UserService userService;
+
+    // JWT 토큰을 저장할 쿠키 이름
+    private static final String JWT_COOKIE_NAME = "jwt_token";
+    // 쿠키 만료 시간 (1일 = 86400초)
+    private static final int COOKIE_MAX_AGE = 86400;
 
     public UserViewController(UserService userService) {
         this.userService = userService;
@@ -82,11 +89,21 @@ public class UserViewController {
     }
 
     @PostMapping("/login")
-    public String login(@ModelAttribute UserDto userDto, Model model) {
+    public String login(@ModelAttribute UserDto userDto, Model model, HttpServletResponse response) {
         try {
             String token = userService.login(userDto);
-            model.addAttribute("successMessage", "로그인 성공! JWT: " + token);
-            logger.info("User logged in successfully: {}", userDto.getEmail());
+
+            // JWT 쿠키 설정 (API Controller와 동일한 로직)
+            Cookie jwtCookie = new Cookie(JWT_COOKIE_NAME, token);
+            jwtCookie.setHttpOnly(true);  // XSS 공격 방지
+            jwtCookie.setSecure(false);   // 개발환경에서는 false
+            jwtCookie.setPath("/");       // 모든 경로에서 쿠키 전송
+            jwtCookie.setMaxAge(COOKIE_MAX_AGE);  // 쿠키 만료 시간 설정
+            jwtCookie.setAttribute("SameSite", "Lax");  // CSRF 공격 방지
+
+            response.addCookie(jwtCookie);
+            logger.info("User logged in successfully with JWT cookie: {}", userDto.getEmail());
+
             return "redirect:/users/welcome";
         } catch (IllegalArgumentException e) {
             model.addAttribute("errorMessage", "로그인 실패: " + e.getMessage());
@@ -100,4 +117,6 @@ public class UserViewController {
     public String showWelcomePage() {
         return "welcome";
     }
+
+
 }

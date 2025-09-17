@@ -1,7 +1,9 @@
 package com.spare.user.infrastructure.config;
 
+import jakarta.servlet.http.Cookie;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -14,71 +16,87 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private static final String JWT_COOKIE_NAME = "jwt_token";
+
+    // API 전용 보안 설정 (우선순위 높음)
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Order(1)
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
+                .securityMatcher("/api/**")  // API 경로에만 적용
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // API는 세션 사용 안함
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/api/users/signup",
+                                "/api/users/login",
+                                "/api/users/logout",
+                                "/api/users/verification/send",
+                                "/api/users/verification/verify",
+                                "/api/users/oauth2/success"
+                        ).permitAll()
+                        .requestMatchers("/api/products/**").authenticated()
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    // 웹 전용 보안 설정
+    @Bean
+    @Order(2)
+    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/**")  // 나머지 모든 경로
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .maximumSessions(1)
                         .maxSessionsPreventsLogin(false))
                 .authorizeHttpRequests(auth -> auth
-                        // 인증 없이 접근 가능한 경로들
                         .requestMatchers(
-                                "/api/users/signup",
-                                "/api/users/login",
-                                "/api/users/verification/send",
-                                "/api/users/verification/verify",
-                                "/users/login",           // 일반 로그인 페이지
-                                "/users/signup",          // 일반 회원가입 페이지
-                                "/login",                 // 로그인 페이지
-                                "/signup",                // 회원가입 페이지
-                                "/css/**",                // CSS 파일들
-                                "/js/**",                 // JavaScript 파일들
-                                "/images/**",             // 이미지 파일들
-                                "/favicon.ico",           // 파비콘
-                                "/error",                 // 에러 페이지
-                                // Swagger UI 관련 경로들
-                                "/swagger-ui/**",         // Swagger UI
-                                "/v3/api-docs/**",        // OpenAPI 문서
-                                "/swagger-ui.html",       // Swagger UI 메인 페이지
-                                "/webjars/**"             // Swagger UI 리소스
+                                "/users/login",
+                                "/users/signup",
+                                "/login",
+                                "/signup",
+                                "/css/**",
+                                "/js/**",
+                                "/images/**",
+                                "/favicon.ico",
+                                "/error",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html",
+                                "/webjars/**"
                         ).permitAll()
-                        // OAuth2 관련 경로들
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        // OAuth2 성공 콜백 (for API compatibility, though redirect handled elsewhere)
-                        .requestMatchers("/api/users/oauth2/success").permitAll()
-                        // Welcome 페이지 (requires authentication)
                         .requestMatchers("/users/welcome").authenticated()
-                        // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
-                                // OAuth2 로그인 시작 경로를 명시적으로 설정
-                                .authorizationEndpoint(authorization -> authorization
-                                        .baseUri("/oauth2/authorization"))
-                                // OAuth2 로그인 성공 시 리다이렉트 URL
-                                .defaultSuccessUrl("/users/welcome", true)
-                                // OAuth2 로그인 실패 시 리다이렉트 URL
-                                .failureUrl("/login?error=oauth2_failed")
-                        // 커스텀 로그인 페이지는 설정하지 않음 (자동 리다이렉트 방지)
-                )
-                // 폼 로그인 설정 (일반 로그인용)
-                .formLogin(form -> form
-                        .loginPage("/users/login")        // 일반 로그인 페이지
-                        .loginProcessingUrl("/api/users/login")  // 로그인 처리 URL
+                        .authorizationEndpoint(authorization -> authorization
+                                .baseUri("/oauth2/authorization"))
                         .defaultSuccessUrl("/users/welcome", true)
-                        .failureUrl("/users/login?error=true")
-                        .permitAll()
+                        .failureUrl("/login?error=oauth2_failed")
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/users/login?logout=true")
                         .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
+                        .deleteCookies("JSESSIONID", JWT_COOKIE_NAME)
+                        .addLogoutHandler((request, response, authentication) -> {
+                            Cookie jwtCookie = new Cookie(JWT_COOKIE_NAME, null);
+                            jwtCookie.setHttpOnly(true);
+                            jwtCookie.setSecure(false);
+                            jwtCookie.setPath("/");
+                            jwtCookie.setMaxAge(0);
+                            response.addCookie(jwtCookie);
+                        })
                         .permitAll()
                 )
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class); // JWT 필터 추가
 
         return http.build();
     }
