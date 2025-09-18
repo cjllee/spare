@@ -3,6 +3,7 @@ package com.spare.user.infrastructure.config;
 import jakarta.servlet.http.Cookie;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -17,6 +18,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private static final String JWT_COOKIE_NAME = "jwt_token";
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+
+    public SecurityConfig(@Lazy OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler) {
+        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
+    }
 
     // API 전용 보안 설정 (우선순위 높음)
     @Bean
@@ -78,8 +84,8 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authorization -> authorization
                                 .baseUri("/oauth2/authorization"))
-                        .defaultSuccessUrl("/users/welcome", true)
-                        .failureUrl("/login?error=oauth2_failed")
+                        .successHandler(oAuth2AuthenticationSuccessHandler)  // 커스텀 성공 핸들러 사용
+                        .failureUrl("/users/login?error=oauth2_failed")
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")

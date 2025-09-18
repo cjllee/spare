@@ -10,20 +10,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
-@Tag(name = "ì‚¬ìš©ìž API", description = "íšŒì›ê°€ìž…, ë¡œê·¸ì¸, ì¸ì¦ ê´€ë ¨ API")
+@Tag(name = "사용자 API", description = "회원가입, 로그인, 인증 관련 API")
 public class UserController {
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
     private final UserService userService;
 
-
     private static final String JWT_COOKIE_NAME = "jwt_token";
-
     private static final int COOKIE_MAX_AGE = 86400;
 
     public UserController(UserService userService) {
@@ -31,7 +27,7 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    @Operation(summary = "í˜„ìž¬ ì‚¬ìš©ìž ìƒíƒœ í™•ì¸")
+    @Operation(summary = "현재 사용자 상태 확인")
     public ResponseEntity<?> getCurrentUser(Authentication authentication) {
         if (authentication != null && authentication.isAuthenticated()) {
             return ResponseEntity.ok("Already logged in");
@@ -40,7 +36,7 @@ public class UserController {
     }
 
     @PostMapping("/verification/send")
-    @Operation(summary = "ì´ë©”ì¼ ì¸ì¦ ì½”ë“œ ë°œì†¡", description = "íšŒì›ê°€ìž…ìš© ì´ë©”ì¼ ì¸ì¦ ì½”ë“œë¥¼ ë°œì†¡í•©ë‹ˆë‹¤")
+    @Operation(summary = "이메일 인증 코드 발송", description = "회원가입용 이메일 인증 코드를 발송합니다")
     public ResponseEntity<String> sendVerificationCode(@RequestBody UserDto userDto, Authentication authentication) {
         if (authentication != null && authentication.isAuthenticated()) {
             return ResponseEntity.badRequest().body("Already logged in. Please logout first.");
@@ -51,7 +47,7 @@ public class UserController {
     }
 
     @PostMapping("/verification/verify")
-    @Operation(summary = "ì¸ì¦ ì½”ë“œ í™•ì¸", description = "ì´ë©”ì¼ë¡œ ë°›ì€ ì¸ì¦ ì½”ë“œë¥¼ í™•ì¸í•©ë‹ˆë‹¤")
+    @Operation(summary = "인증 코드 확인", description = "이메일로 받은 인증 코드를 확인합니다")
     public ResponseEntity<String> verifyCode(@RequestParam String email, @RequestParam String code, Authentication authentication) {
         if (authentication != null && authentication.isAuthenticated()) {
             return ResponseEntity.badRequest().body("Already logged in. Please logout first.");
@@ -64,7 +60,7 @@ public class UserController {
     }
 
     @PostMapping("/signup")
-    @Operation(summary = "íšŒì›ê°€ìž…", description = "ì´ë©”ì¼ ì¸ì¦ ì™„ë£Œ í›„ íšŒì›ê°€ìž…ì„ ì§„í–‰í•©ë‹ˆë‹¤")
+    @Operation(summary = "회원가입", description = "이메일 인증 완료 후 회원가입을 진행합니다")
     public ResponseEntity<UserDto> signup(@RequestBody UserDto userDto, Authentication authentication) {
         if (authentication != null && authentication.isAuthenticated()) {
             return ResponseEntity.badRequest().body(null);
@@ -75,18 +71,18 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "ë¡œê·¸ì¸", description = "ì´ë©”ì¼ê³¼ ë¹„ë°€ë²ˆí˜¸ë¡œ ë¡œê·¸ì¸í•˜ì—¬ JWT í† í°ì„ HttpOnly ì¿ í‚¤ì— ì €ìž¥í•©ë‹ˆë‹¤")
+    @Operation(summary = "로그인", description = "이메일과 비밀번호로 로그인하여 JWT 토큰을 HttpOnly 쿠키에 저장합니다")
     public ResponseEntity<String> login(@RequestBody UserDto userDto, HttpServletResponse response) {
         try {
             String token = userService.login(userDto);
 
-            // HttpOnly ì¿ í‚¤ ìƒì„±
+            // HttpOnly 쿠키 생성
             Cookie jwtCookie = new Cookie(JWT_COOKIE_NAME, token);
-            jwtCookie.setHttpOnly(true);  // XSS ê³µê²© ë°©ì§€
-            jwtCookie.setSecure(false);   // HTTPSì—ì„œë§Œ ì „ì†¡ (ê°œë°œí™˜ê²½ì—ì„œëŠ” false)
-            jwtCookie.setPath("/");       // ëª¨ë“  ê²½ë¡œì—ì„œ ì¿ í‚¤ ì „ì†¡
-            jwtCookie.setMaxAge(COOKIE_MAX_AGE);  // ì¿ í‚¤ ë§Œë£Œ ì‹œê°„ ì„¤ì •
-            jwtCookie.setAttribute("SameSite", "Lax");  // CSRF ê³µê²© ë°©ì§€
+            jwtCookie.setHttpOnly(true);  // XSS 공격 방지
+            jwtCookie.setSecure(false);   // HTTPS에서만 전송 (개발환경에서는 false)
+            jwtCookie.setPath("/");       // 모든 경로에서 쿠키 전송
+            jwtCookie.setMaxAge(COOKIE_MAX_AGE);  // 쿠키 만료 시간 설정
+            jwtCookie.setAttribute("SameSite", "Lax");  // CSRF 공격 방지
 
             response.addCookie(jwtCookie);
             logger.info("JWT token set in HttpOnly cookie for user login");
@@ -97,54 +93,15 @@ public class UserController {
         }
     }
 
-    @GetMapping("/oauth2/success")
-    @Operation(summary = "OAuth2 ë¡œê·¸ì¸ ì„±ê³µ", description = "Google OAuth2 ë¡œê·¸ì¸ ì„±ê³µ í›„ JWT í† í°ì„ HttpOnly ì¿ í‚¤ì— ì €ìž¥í•©ë‹ˆë‹¤")
-    public ResponseEntity<String> oauth2Login(OAuth2AuthenticationToken authentication, HttpServletResponse response) {
-        logger.warn("OAuth2 success endpoint called directly; redirect should occur via SecurityConfig to /users/welcome");
-        if (authentication == null) {
-            logger.error("OAuth2 authentication is null");
-            return ResponseEntity.badRequest().body("Authentication failed: No authentication token found");
-        }
-
-        try {
-            OAuth2User oAuth2User = authentication.getPrincipal();
-            if (oAuth2User == null) {
-                logger.error("OAuth2 user principal is null");
-                return ResponseEntity.badRequest().body("Authentication failed: No user principal found");
-            }
-
-            String token = userService.loginWithOAuth2(oAuth2User);
-
-            // HttpOnly ì¿ í‚¤ ìƒì„±
-            Cookie jwtCookie = new Cookie(JWT_COOKIE_NAME, token);
-            jwtCookie.setHttpOnly(true);  // XSS ê³µê²© ë°©ì§€
-            jwtCookie.setSecure(false);   // HTTPSì—ì„œë§Œ ì „ì†¡ (ê°œë°œí™˜ê²½ì—ì„œëŠ” false)
-            jwtCookie.setPath("/");       // ëª¨ë“  ê²½ë¡œì—ì„œ ì¿ í‚¤ ì „ì†¡
-            jwtCookie.setMaxAge(COOKIE_MAX_AGE);  // ì¿ í‚¤ ë§Œë£Œ ì‹œê°„ ì„¤ì •
-            jwtCookie.setAttribute("SameSite", "Lax");  // CSRF ê³µê²© ë°©ì§€
-
-            response.addCookie(jwtCookie);
-            logger.info("JWT token set in HttpOnly cookie for OAuth2 login");
-
-            return ResponseEntity.ok("OAuth2 login successful");
-
-        } catch (Exception e) {
-            logger.error("OAuth2 login failed: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().body("OAuth2 login failed: " + e.getMessage());
-        }
-    }
-
-
-
     @PostMapping("/logout")
-    @Operation(summary = "ë¡œê·¸ì•„ì›ƒ", description = "JWT í† í° ì¿ í‚¤ë¥¼ ì‚­ì œí•˜ì—¬ ë¡œê·¸ì•„ì›ƒí•©ë‹ˆë‹¤")
+    @Operation(summary = "로그아웃", description = "JWT 토큰 쿠키를 삭제하여 로그아웃합니다")
     public ResponseEntity<String> logout(HttpServletResponse response) {
-        // JWT ì¿ í‚¤ ì‚­ì œ
+        // JWT 쿠키 삭제
         Cookie jwtCookie = new Cookie(JWT_COOKIE_NAME, null);
         jwtCookie.setHttpOnly(true);
         jwtCookie.setSecure(false);
         jwtCookie.setPath("/");
-        jwtCookie.setMaxAge(0);  // ì¦‰ì‹œ ë§Œë£Œ
+        jwtCookie.setMaxAge(0);  // 즉시 만료
 
         response.addCookie(jwtCookie);
         logger.info("JWT token cookie deleted for logout");
